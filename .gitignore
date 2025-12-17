@@ -1,0 +1,53 @@
+.env
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/
+tests/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Backup files
+*.backup
+*.deprecated
+
+# Test suite data and results
+test/data/tedlium/
+test/data/processed/
+test/results/
+test/venv/
+test/__pycache__/
+test/utils/__pycache__/
+test/*.log
+test/.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,54 @@
+{
+  "form_id": "medical_visit_analysis_v1",
+  "fields": [
+    {
+      "field_id": "patient_id",
+      "field_name": "Patient ID",
+      "field_type": "text"
+    },
+    {
+      "field_id": "visit_date",
+      "field_name": "Date of Visit",
+      "field_type": "text"
+    },
+    {
+      "field_id": "chief_complaint",
+      "field_name": "Chief Complaint",
+      "field_type": "text"
+    },
+    {
+      "field_id": "diagnosis",
+      "field_name": "Primary Diagnosis",
+      "field_type": "text"
+    },
+    {
+      "field_id": "pain_level",
+      "field_name": "Pain Level (1-10)",
+      "field_type": "select",
+      "options": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+    },
+    {
+      "field_id": "urgency",
+      "field_name": "Urgency Level",
+      "field_type": "radio",
+      "options": ["routine", "urgent", "emergency"]
+    },
+    {
+      "field_id": "medications_prescribed",
+      "field_name": "Medications Prescribed",
+      "field_type": "text"
+    },
+    {
+      "field_id": "follow_up_required",
+      "field_name": "Follow-up Required?",
+      "field_type": "radio",
+      "options": ["yes", "no"]
+    },
+    {
+      "field_id": "follow_up_timeframe",
+      "field_name": "Follow-up Timeframe",
+      "field_type": "select",
+      "options": ["1 week", "2 weeks", "1 month", "3 months", "as needed"]
+    }
+  ]
+}

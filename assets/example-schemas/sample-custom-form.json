@@ -1,0 +1,38 @@
+{
+  "form_id": "custom_meeting_analysis_v1",
+  "fields": [
+    {
+      "field_id": "meeting_type",
+      "field_name": "Meeting Type",
+      "field_type": "select",
+      "options": ["standup", "planning", "retrospective", "interview", "sales_call"]
+    },
+    {
+      "field_id": "participant_count",
+      "field_name": "Number of Participants",
+      "field_type": "select",
+      "options": ["1", "2", "3-5", "6-10", "10+"]
+    },
+    {
+      "field_id": "key_decisions",
+      "field_name": "Key Decisions Made",
+      "field_type": "text"
+    },
+    {
+      "field_id": "action_items",
+      "field_name": "Action Items",
+      "field_type": "text"
+    },
+    {
+      "field_id": "next_steps",
+      "field_name": "Next Steps",
+      "field_type": "text"
+    },
+    {
+      "field_id": "overall_tone",
+      "field_name": "Overall Tone of Meeting",
+      "field_type": "radio",
+      "options": ["collaborative", "contentious", "informational", "decisive"]
+    }
+  ]
+}

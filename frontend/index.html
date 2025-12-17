@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Processing — BDA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #FAFAFA;
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #1A1A1A;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .three-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .column {
+            min-width: 0;
+        }
+
+        .column-1, .column-2 {
+            align-self: start;
+        }
+
+        .column-3 {
+            position: sticky;
+            top: 20px;
+            align-self: start;
+        }
+
+        @media (max-width: 1200px) {
+            .three-column-layout {
+                grid-template-columns: 1fr 1fr;
+                gap: 28px;
+            }
+            
+            .column-3 {
+                grid-column: 1 / -1;
+                position: static;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .three-column-layout {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .column-3 {
+                position: static;
+            }
+        }
+
+        header {
+            margin-bottom: 48px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #1A1A1A;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6B7280;
+            font-size: 15px;
+            font-weight: 400;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .card-header.collapsible {
+            cursor: pointer;
+            justify-content: space-between;
+            user-select: none;
+        }
+
+        .card-header.collapsible:hover {
+            background-color: #F9FAFB;
+            margin: -8px -8px 20px -8px;
+            padding: 8px 8px 16px 8px;
+            border-radius: 4px;
+        }
+
+        .collapse-icon {
+            font-size: 12px;
+            transition: transform 0.2s ease;
+            color: #6B7280;
+        }
+
+        .collapse-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.15s ease;
+            background: white;
+        }
+
+        textarea {
+            resize: vertical;
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            min-height: 80px;
+        }
+
+        #schemaEditor {
+            min-height: 300px;
+            font-size: 13px;
+            background: #1E1E1E;
+            color: #D4D4D4;
+            border: 1px solid #374151;
+        }
+
+        #schemaEditor:focus {
+            outline: none;
+            border-color: #4F46E5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .schema-validation-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .schema-validation-status.success {
+            background: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #86EFAC;
+        }
+
+        .schema-validation-status.error {
+            background: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #FCA5A5;
+        }
+
+        .schema-validation-status svg {
+            flex-shrink: 0;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #4F46E5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        input[type="file"] {
+            cursor: pointer;
+            padding: 8px 12px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background: #4F46E5;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #4338CA;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #D1D5DB;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #F9FAFB;
+            border-color: #9CA3AF;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Schema loading feedback */
+        .schema-loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #6B7280;
+        }
+
+        .schema-loading-indicator.loading {
+            color: #4F46E5;
+        }
+
+        .schema-loading-indicator.loaded {
+            color: #10B981;
+        }
+
+        .schema-loading-indicator.error {
+            color: #EF4444;
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #E5E7EB;
+            border-top-color: #4F46E5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .form-display {
+            margin-top: 16px;
+            padding: 12px;
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+            max-height: 180px;
+            overflow-y: auto;
+            color: #374151;
+        }
+
+        .form-display-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            color: #10B981;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .status-container {
+            margin-top: 32px;
+            display: none;
+        }
+
+        .status-container.active {
+            display: block;
+        }
+
+        .status-card {
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .status-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 4px;
+        }
+
+        .job-id {
+            font-size: 12px;
+            color: #6B7280;
+            font-family: 'SF Mono', 'Monaco', monospace;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .status-created,
+        .status-initializing,
+        .status-preprocessing,
+        .status-preprocessed,
+        .status-bda_processing,
+        .status-extracting_results,
+        .status-processing_structured_data,
+        .status-validating {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        .status-completed {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+
+        .status-failed {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #F3F4F6;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4F46E5;
+            transition: width 0.4s ease;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #4B5563;
+            margin-bottom: 8px;
+        }
+
+        .status-time {
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 16px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .alert-error {
+            background: #FEF2F2;
+            color: #991B1B;
+            border: 1px solid #FCA5A5;
+        }
+
+        .alert-success {
+            background: #F0FDF4;
+            color: #166534;
+            border: 1px solid #86EFAC;
+        }
+
+        .results-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+        }
+
+        .results-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+        }
+
+        .result-item {
+            font-size: 13px;
+            color: #6B7280;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #E5E7EB;
+            border-top-color: #4F46E5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hint {
+            display: block;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #9CA3AF;
+            font-weight: 400;
+        }
+
+        .structured-data {
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .structured-data-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+
+        .field-group {
+            margin-bottom: 12px;
+        }
+
+        .field-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .field-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .field-value {
+            font-size: 14px;
+            color: #111827;
+            padding: 8px 12px;
+            background: #F9FAFB;
+            border-radius: 4px;
+            border: 1px solid #E5E7EB;
+        }
+
+        .s3-link {
+            font-size: 12px;
+            color: #4F46E5;
+            font-family: 'SF Mono', monospace;
+            margin-top: 8px;
+            display: block;
+        }
+
+        /* Form Visualizer */
+        .form-visualizer {
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .form-visualizer-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #E5E7EB;
+        }
+
+        .form-field {
+            margin-bottom: 20px;
+        }
+
+        .form-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-field-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .form-field-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #F9FAFB;
+            color: #6B7280;
+        }
+
+        .form-field-input.filled {
+            background: white;
+            color: #111827;
+            border-color: #4F46E5;
+        }
+
+        .form-field-radio,
+        .form-field-select {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            background: #F9FAFB;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .radio-option.selected {
+            background: #EEF2FF;
+            border-color: #4F46E5;
+            color: #4F46E5;
+            font-weight: 500;
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 8px;
+        }
+
+        .select-dropdown {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #F9FAFB;
+            color: #6B7280;
+        }
+
+        .select-dropdown.filled {
+            background: white;
+            color: #111827;
+            border-color: #4F46E5;
+        }
+
+        .json-display {
+            background: #1E1E1E;
+            color: #D4D4D4;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9CA3AF;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Media Processing</h1>
+            <p class="subtitle">Transform media files into structured data using AWS Bedrock</p>
+        </header>
+
+        <div class="three-column-layout">
+            <!-- Column 1: Configuration & Setup -->
+            <div class="column column-1">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Media File</h2>
+                    </div>
+                    <div class="form-group">
+                        <label for="mediaFile">Select File</label>
+                        <input type="file" id="mediaFile" accept="audio/*,video/*,image/*,application/pdf,.doc,.docx">
+                        <span class="hint">Supported: Audio (MP3, WAV, M4A, FLAC), Video (MP4, MOV, AVI), Images (PNG, JPG), Documents (PDF, DOCX)<br>Maximum file size: 500MB | Maximum files: 1 file at a time</span>
+                    </div>
+                    <button id="uploadBtn" class="btn-primary" onclick="uploadMedia()">
+                        Process Media
+                    </button>
+                </div>
+
+                <div class="status-container" id="statusContainer">
+                    <div class="status-card">
+                        <div class="status-header">
+                            <div>
+                                <div class="status-title">Processing Status</div>
+                                <div class="job-id" id="jobIdDisplay"></div>
+                            </div>
+                            <span class="status-badge" id="statusBadge">
+                                <span class="spinner"></span> <span>Processing</span>
+                            </span>
+                        </div>
+
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+
+                        <div class="status-text" id="statusText">Initializing...</div>
+                        <div class="status-time" id="statusTime"></div>
+
+                        <div id="errorDisplay" class="alert alert-error" style="display: none;"></div>
+                        <div id="successDisplay" class="alert alert-success" style="display: none;"></div>
+                        <div id="resultsLink" class="results-section" style="display: none;">
+                            <div class="results-title">Results</div>
+                            <div id="resultsContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- End column-1 -->
+
+            <!-- Column 2: Schema & Data -->
+            <div class="column column-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Form Schema</h2>
+                    </div>
+                    <div class="form-group">
+                        <label for="formSchemaFile">Custom Extraction Schema</label>
+                        <input type="file" id="formSchemaFile" accept=".json" style="display: none;" onchange="loadFormSchema(event)">
+                        <div class="button-group">
+                            <button type="button" class="btn-secondary" onclick="document.getElementById('formSchemaFile').click()">
+                                Upload Schema
+                            </button>
+                            <button type="button" class="btn-secondary" onclick="loadDemoForm()">
+                                Use Demo
+                            </button>
+                        </div>
+                        <span class="hint">Define what fields to extract from transcripts</span>
+                        <div id="schemaLoadingIndicator" class="schema-loading-indicator" style="display: none;">
+                            <span id="schemaLoadingIcon"></span>
+                            <span id="schemaLoadingText"></span>
+                        </div>
+                    </div>
+                    <div id="formDisplay">
+                        <label for="schemaEditor">JSON Schema Editor</label>
+                        <textarea id="schemaEditor" placeholder='{"form_id": "...", "fields": [...]}'></textarea>
+                        <button type="button" class="btn-primary" onclick="validateSchema()" style="margin-top: 12px; width: 100%;">
+                            Validate Schema
+                        </button>
+                        <div id="schemaValidationStatus"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header collapsible" onclick="toggleSection('definitions')">
+                        <h2>Definitions (Optional)</h2>
+                        <span class="collapse-icon" id="definitions-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content" id="definitions-content" style="display: none;">
+                        <div class="form-group">
+                            <label for="definitions">Industry-Specific Definitions</label>
+                            <textarea id="definitions" rows="6" placeholder="Enter industry-specific definitions to guide extraction (one per line)&#10;Example:&#10;Chief complaint = primary reason for visit&#10;Pain level = numeric scale 1-10"></textarea>
+                            <span class="hint">Help Claude interpret domain-specific terminology accurately</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header collapsible" onclick="toggleSection('prefilled')">
+                        <h2>Pre-filled Values (Optional)</h2>
+                        <span class="collapse-icon" id="prefilled-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content" id="prefilled-content" style="display: none;">
+                        <div class="form-group">
+                            <label for="prefilledValues">Pre-filled Field Values (JSON)</label>
+                            <textarea id="prefilledValues" rows="6" placeholder='{"content": {"patient_id": "PAT-12345", "appointment_date": "2025-10-31"}}'></textarea>
+                            <span class="hint">Provide known values that Claude should not override</span>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- End column-2 -->
+
+            <!-- Column 3: Visualization -->
+            <div class="column column-3">
+                <div id="formVisualizerContainer" class="form-visualizer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-text">Upload or select a form schema to see preview</div>
+                    </div>
+                </div>
+            </div><!-- End column-3 -->
+        </div><!-- End three-column-layout -->
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        // HTML escaping helper function to prevent XSS
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) {
+                return '';
+            }
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Demo form schema (NEW FLAT FORMAT)
+        const DEMO_FORM_SCHEMA = {
+            "form_id": "simple_media_analysis_v1",
+            "fields": [
+                {
+                    "field_id": "content_type",
+                    "field_name": "Content Type",
+                    "field_type": "select",
+                    "options": ["audio", "video", "document", "image"]
+                },
+                {
+                    "field_id": "main_topics",
+                    "field_name": "Main Topics or Themes",
+                    "field_type": "text"
+                },
+                {
+                    "field_id": "summary",
+                    "field_name": "Content Summary",
+                    "field_type": "text"
+                },
+                {
+                    "field_id": "sentiment",
+                    "field_name": "Overall Sentiment",
+                    "field_type": "radio",
+                    "options": ["positive", "neutral", "negative"]
+                }
+            ]
+        };
+
+        // Global form schema storage
+        let currentFormSchema = null;
+        let schemaLoadingState = null; // null = no schema, 'loading' = loading, 'loaded' = ready
+
+        // Status progression mapping
+        const STATUS_STAGES = {
+            'CREATED': { progress: 5, message: 'Job created and ready for processing' },
+            'INITIALIZING': { progress: 15, message: 'Initializing job and preparing media file' },
+            'PREPROCESSING': { progress: 20, message: 'Preprocessing media file' },
+            'PREPROCESSED': { progress: 25, message: 'Media preprocessing complete, starting processing' },
+            'BDA_PROCESSING': { progress: 40, message: 'Processing media with AWS Bedrock Data Automation' },
+            'EXTRACTING_RESULTS': { progress: 65, message: 'Extracting transcript from processing results' },
+            'PROCESSING_STRUCTURED_DATA': { progress: 80, message: 'Analyzing transcript and extracting structured data' },
+            'VALIDATING': { progress: 95, message: 'Validating extracted data' },
+            'COMPLETED': { progress: 100, message: 'Processing complete. Results are ready.' },
+            'FAILED': { progress: 0, message: 'Processing failed. See error details below.' }
+        };
+
+        let pollInterval = null;
+        let startTime = null;
+
+        // Validate API endpoint is configured
+        window.addEventListener('load', () => {
+            if (typeof API_ENDPOINT === 'undefined' || !API_ENDPOINT) {
+                console.error('API_ENDPOINT not configured in config.js');
+                alert('Configuration error: API endpoint not found. Please ensure config.js is properly configured.');
+            }
+        });
+
+        // Helper function to update schema loading state
+        function updateSchemaLoadingState(state, message = '') {
+            const indicator = document.getElementById('schemaLoadingIndicator');
+            const icon = document.getElementById('schemaLoadingIcon');
+            const text = document.getElementById('schemaLoadingText');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            schemaLoadingState = state;
+
+            if (state === null) {
+                // No schema loaded
+                indicator.style.display = 'none';
+                uploadBtn.disabled = false;
+            } else if (state === 'loading') {
+                // Loading state
+                indicator.style.display = 'flex';
+                indicator.className = 'schema-loading-indicator loading';
+                icon.innerHTML = '<div class="spinner"></div>';
+                text.textContent = message || 'Loading schema...';
+                uploadBtn.disabled = true;
+            } else if (state === 'loaded') {
+                // Success state
+                indicator.style.display = 'flex';
+                indicator.className = 'schema-loading-indicator loaded';
+                icon.textContent = '✓';
+                text.textContent = message || 'Schema loaded successfully';
+                uploadBtn.disabled = false;
+            } else if (state === 'error') {
+                // Error state
+                indicator.style.display = 'flex';
+                indicator.className = 'schema-loading-indicator error';
+                icon.textContent = '✗';
+                text.textContent = message || 'Error loading schema';
+                uploadBtn.disabled = true;
+            }
+        }
+
+        // Load demo form
+        function loadDemoForm() {
+            // Populate the JSON editor with demo schema
+            const editor = document.getElementById('schemaEditor');
+            editor.value = JSON.stringify(DEMO_FORM_SCHEMA, null, 2);
+
+            // Clear validation status - user must validate manually
+            const validationStatus = document.getElementById('schemaValidationStatus');
+            validationStatus.innerHTML = '';
+
+            // Clear current schema - user must validate
+            currentFormSchema = null;
+            updateSchemaLoadingState(null);
+        }
+
+        // Load custom form schema from file
+        function loadFormSchema(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const schema = JSON.parse(e.target.result);
+
+                    // Basic check - just verify it's valid JSON
+                    // Populate the JSON editor
+                    const editor = document.getElementById('schemaEditor');
+                    editor.value = JSON.stringify(schema, null, 2);
+
+                    // Clear validation status - user must validate manually
+                    const validationStatus = document.getElementById('schemaValidationStatus');
+                    validationStatus.innerHTML = '';
+
+                    // Clear current schema - user must validate
+                    currentFormSchema = null;
+                    updateSchemaLoadingState(null);
+                } catch (error) {
+                    currentFormSchema = null;
+                    updateSchemaLoadingState('error', 'Invalid JSON file');
+                    console.error('Schema load error:', error);
+                    alert(`Invalid JSON file: ${error.message}\n\nPlease upload a valid JSON file.`);
+                }
+            };
+
+            reader.onerror = function() {
+                currentFormSchema = null;
+                updateSchemaLoadingState('error', 'Failed to read file');
+                alert('Failed to read file. Please try again.');
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Display loaded form schema
+        function displayFormSchema(schema) {
+            const editor = document.getElementById('schemaEditor');
+            editor.value = JSON.stringify(schema, null, 2);
+
+            // Clear validation status
+            const validationStatus = document.getElementById('schemaValidationStatus');
+            validationStatus.innerHTML = '';
+
+            // Render blank form visualizer
+            renderFormVisualizer(schema, null);
+        }
+
+        // Comprehensive schema validation function
+        function validateSchema() {
+            const editor = document.getElementById('schemaEditor');
+            const validationStatus = document.getElementById('schemaValidationStatus');
+            const editorValue = editor.value.trim();
+
+            // Clear previous validation
+            validationStatus.innerHTML = '';
+            currentFormSchema = null;
+
+            if (!editorValue) {
+                showValidationError('Schema is empty. Please enter a valid JSON schema.');
+                return false;
+            }
+
+            let schema;
+            try {
+                schema = JSON.parse(editorValue);
+            } catch (e) {
+                showValidationError(`Invalid JSON: ${e.message}`);
+                return false;
+            }
+
+            // Validation rules
+            const errors = [];
+
+            // 1. Must have form_id (string)
+            if (!schema.form_id || typeof schema.form_id !== 'string') {
+                errors.push('Missing or invalid "form_id" (must be a string)');
+            }
+
+            // 2. Must have fields array
+            if (!schema.fields) {
+                errors.push('Missing "fields" array');
+            } else if (!Array.isArray(schema.fields)) {
+                errors.push('"fields" must be an array');
+            } else {
+                // 3. Fields must have at least 1 field
+                if (schema.fields.length === 0) {
+                    errors.push('"fields" array must contain at least 1 field');
+                }
+
+                // 4-7. Validate each field
+                schema.fields.forEach((field, index) => {
+                    const fieldPrefix = `Field ${index + 1}`;
+
+                    // 4. Each field MUST have: field_id, field_name, field_type
+                    if (!field.field_id || typeof field.field_id !== 'string') {
+                        errors.push(`${fieldPrefix}: missing or invalid "field_id" (must be a string)`);
+                    }
+                    if (!field.field_name || typeof field.field_name !== 'string') {
+                        errors.push(`${fieldPrefix}: missing or invalid "field_name" (must be a string)`);
+                    }
+                    if (!field.field_type || typeof field.field_type !== 'string') {
+                        errors.push(`${fieldPrefix}: missing or invalid "field_type" (must be a string)`);
+                    } else {
+                        // 5. field_type must be one of: "text", "select", "radio"
+                        if (!['text', 'select', 'radio'].includes(field.field_type)) {
+                            errors.push(`${fieldPrefix}: "field_type" must be one of: "text", "select", "radio" (got "${field.field_type}")`);
+                        }
+
+                        // 6. If field_type is "select" or "radio", MUST have options array with at least 1 option
+                        if (field.field_type === 'select' || field.field_type === 'radio') {
+                            if (!field.options) {
+                                errors.push(`${fieldPrefix}: "field_type" is "${field.field_type}" but missing "options" array`);
+                            } else if (!Array.isArray(field.options)) {
+                                errors.push(`${fieldPrefix}: "options" must be an array`);
+                            } else if (field.options.length === 0) {
+                                errors.push(`${fieldPrefix}: "options" array must contain at least 1 option`);
+                            }
+                        }
+
+                        // 7. Options NOT allowed for "text" type
+                        if (field.field_type === 'text' && field.options) {
+                            errors.push(`${fieldPrefix}: "options" not allowed for "text" field type`);
+                        }
+                    }
+                });
+            }
+
+            // Display results
+            if (errors.length > 0) {
+                showValidationError('Schema validation failed:\n\n' + errors.map(e => '• ' + e).join('\n'));
+                return false;
+            } else {
+                showValidationSuccess(`Schema is valid! (${schema.fields.length} fields)`);
+                currentFormSchema = schema;
+                updateSchemaLoadingState('loaded', `Schema "${schema.form_id}" validated`);
+
+                // Render the form preview
+                renderFormVisualizer(schema, null);
+                return true;
+            }
+        }
+
+        function showValidationSuccess(message) {
+            const validationStatus = document.getElementById('schemaValidationStatus');
+            validationStatus.className = 'schema-validation-status success';
+            validationStatus.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span>${escapeHtml(message)}</span>
+            `;
+        }
+
+        function showValidationError(message) {
+            const validationStatus = document.getElementById('schemaValidationStatus');
+            validationStatus.className = 'schema-validation-status error';
+            validationStatus.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                </svg>
+                <span style="white-space: pre-line;">${escapeHtml(message)}</span>
+            `;
+        }
+
+        // Render form visualizer
+        function renderFormVisualizer(schema, data = null) {
+            const container = document.getElementById('formVisualizerContainer');
+
+            if (!schema) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-text">Upload or select a form schema to see preview</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const isEditable = !data; // Only editable if no data (blank form)
+            let html = '<div class="form-visualizer-title">';
+            html += data ? 'Extracted Form Data' : 'Form Preview';
+            html += '</div>';
+
+            // Support both OLD (sections) and NEW (fields) formats
+            const isOldFormat = !!schema.sections;
+            let fieldsToRender = [];
+
+            if (isOldFormat) {
+                // OLD FORMAT: flatten sections into fields
+                schema.sections.forEach(section => {
+                    section.fields.forEach(field => {
+                        fieldsToRender.push({
+                            ...field,
+                            section_id: section.section_id
+                        });
+                    });
+                });
+            } else {
+                // NEW FORMAT: use fields directly
+                fieldsToRender = schema.fields || [];
+            }
+
+            // Render each field
+            fieldsToRender.forEach(field => {
+                // Use field_name if provided, otherwise generate from field_id
+                const fieldLabel = field.field_name || field.field_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                // Get field value based on format (try multiple locations for backward compatibility)
+                let fieldValue = null;
+                if (data && data.responses) {
+                    if (isOldFormat && field.section_id) {
+                        // OLD FORMAT SCHEMA: try nested by section
+                        fieldValue = data.responses[field.section_id]?.[field.field_id];
+                    } else {
+                        // NEW FORMAT SCHEMA: try flat first
+                        fieldValue = data.responses[field.field_id];
+
+                        // Fallback: if not found in flat format, try looking in nested "content" section
+                        // (for backward compatibility with old data generated before flat format support)
+                        if (fieldValue === undefined || fieldValue === null) {
+                            fieldValue = data.responses.content?.[field.field_id];
+                        }
+                    }
+                }
+
+                html += '<div class="form-field">';
+                html += `<label class="form-field-label">${escapeHtml(fieldLabel)}</label>`;
+
+                // Generate unique identifiers
+                const sectionId = field.section_id || 'main';
+                const fieldId = field.field_id;
+
+                if (field.field_type === 'text') {
+                    const filled = fieldValue ? 'filled' : '';
+                    const value = fieldValue || '';
+                    html += `<input type="text" class="form-field-input ${filled}" value="${escapeHtml(value)}"
+                             data-section="${escapeHtml(sectionId)}" data-field="${escapeHtml(fieldId)}"
+                             placeholder="Optional: Pre-fill this field"
+                             onchange="updatePreFilledValues()">`;
+                } else if (field.field_type === 'select' && field.options) {
+                    const filled = fieldValue ? 'filled' : '';
+                    html += `<select class="select-dropdown ${filled}"
+                             data-section="${escapeHtml(sectionId)}" data-field="${escapeHtml(fieldId)}"
+                             onchange="updatePreFilledValues()">`;
+                    html += `<option value="">Select an option</option>`;
+                    field.options.forEach(option => {
+                        const selected = fieldValue === option ? 'selected' : '';
+                        html += `<option value="${escapeHtml(option)}" ${selected}>${escapeHtml(option)}</option>`;
+                    });
+                    html += '</select>';
+                } else if (field.field_type === 'radio' && field.options) {
+                    html += '<div class="form-field-radio">';
+                    field.options.forEach((option, index) => {
+                        const selected = fieldValue === option ? 'selected' : '';
+                        const radioId = `${escapeHtml(sectionId)}_${escapeHtml(fieldId)}_${index}`;
+                        const radioName = `${escapeHtml(sectionId)}_${escapeHtml(fieldId)}`;
+                        html += `<div class="radio-option ${selected}" onclick="selectRadio('${radioId}', '${escapeHtml(sectionId)}', '${escapeHtml(fieldId)}', '${escapeHtml(option)}')">`;
+                        html += `<input type="radio" id="${radioId}" name="${radioName}" ${selected ? 'checked' : ''}
+                                 data-section="${escapeHtml(sectionId)}" data-field="${escapeHtml(fieldId)}" value="${escapeHtml(option)}">`;
+                        html += escapeHtml(option);
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            });
+
+            // Add mock Submit button
+            html += '<div style="margin-top: 20px;">';
+            html += '<button class="btn-primary" onclick="handleFormPreviewSubmit()" style="width: 100%;">Submit (Preview Only)</button>';
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        // Handle form preview submit
+        function handleFormPreviewSubmit() {
+            alert('This is a preview - form data is not saved.\n\nIn production, this would submit the pre-filled values to be preserved during processing.');
+        }
+
+        // Handle radio button selection
+        function selectRadio(radioId, sectionId, fieldId, value) {
+            const radio = document.getElementById(radioId);
+            if (!radio || radio.disabled) return;
+
+            radio.checked = true;
+
+            // Update visual selection
+            const radioGroup = radio.closest('.form-field-radio');
+            radioGroup.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
+            radio.closest('.radio-option').classList.add('selected');
+
+            updatePreFilledValues();
+        }
+
+        // Collect form values and update pre_filled_values textarea
+        function updatePreFilledValues() {
+            if (!currentFormSchema) return;
+
+            const isOldFormat = !!currentFormSchema.sections;
+            const preFilledValues = {};
+
+            if (isOldFormat) {
+                // OLD FORMAT: nested by section
+                currentFormSchema.sections.forEach(section => {
+                    section.fields.forEach(field => {
+                        let value = null;
+
+                        if (field.field_type === 'text') {
+                            const input = document.querySelector(`input[data-section="${section.section_id}"][data-field="${field.field_id}"]`);
+                            if (input && input.value.trim()) {
+                                value = input.value.trim();
+                            }
+                        } else if (field.field_type === 'select') {
+                            const select = document.querySelector(`select[data-section="${section.section_id}"][data-field="${field.field_id}"]`);
+                            if (select && select.value) {
+                                value = select.value;
+                            }
+                        } else if (field.field_type === 'radio') {
+                            const radio = document.querySelector(`input[data-section="${section.section_id}"][data-field="${field.field_id}"]:checked`);
+                            if (radio) {
+                                value = radio.value;
+                            }
+                        }
+
+                        if (value) {
+                            if (!preFilledValues[section.section_id]) {
+                                preFilledValues[section.section_id] = {};
+                            }
+                            preFilledValues[section.section_id][field.field_id] = value;
+                        }
+                    });
+                });
+            } else {
+                // NEW FORMAT: flat structure
+                const fields = currentFormSchema.fields || [];
+                fields.forEach(field => {
+                    let value = null;
+                    const sectionId = 'main'; // default section for new format
+
+                    if (field.field_type === 'text') {
+                        const input = document.querySelector(`input[data-field="${field.field_id}"]`);
+                        if (input && input.value.trim()) {
+                            value = input.value.trim();
+                        }
+                    } else if (field.field_type === 'select') {
+                        const select = document.querySelector(`select[data-field="${field.field_id}"]`);
+                        if (select && select.value) {
+                            value = select.value;
+                        }
+                    } else if (field.field_type === 'radio') {
+                        const radio = document.querySelector(`input[data-field="${field.field_id}"]:checked`);
+                        if (radio) {
+                            value = radio.value;
+                        }
+                    }
+
+                    if (value) {
+                        preFilledValues[field.field_id] = value;
+                    }
+                });
+            }
+
+            // Update the pre_filled_values textarea
+            const textarea = document.getElementById('prefilledValues');
+            if (textarea) {
+                if (Object.keys(preFilledValues).length > 0) {
+                    textarea.value = JSON.stringify(preFilledValues, null, 2);
+                } else {
+                    textarea.value = '';
+                }
+            }
+        }
+
+        async function uploadMedia() {
+            const fileInput = document.getElementById('mediaFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const statusContainer = document.getElementById('statusContainer');
+            const errorDisplay = document.getElementById('errorDisplay');
+
+            // Validate API endpoint is configured
+            if (typeof API_ENDPOINT === 'undefined' || !API_ENDPOINT) {
+                alert('Configuration error: API endpoint not configured in config.js');
+                return;
+            }
+
+            // Validate file selection
+            if (!fileInput.files[0]) {
+                alert('Please select a media file');
+                return;
+            }
+
+            // Validate only 1 file is selected
+            if (fileInput.files.length > 1) {
+                alert('Please select only 1 file at a time');
+                return;
+            }
+
+            const file = fileInput.files[0];
+
+            // Validate file type (must match backend whitelist)
+            const ALLOWED_EXTENSIONS = [
+                // Audio
+                'mp3', 'wav', 'm4a', 'flac', 'aac', 'ogg',
+                // Video
+                'mp4', 'mov', 'avi', 'mkv', 'webm',
+                // Documents
+                'pdf', 'doc', 'docx', 'txt',
+                // Images
+                'png', 'jpg', 'jpeg', 'gif', 'webp', 'tiff'
+            ];
+
+            const BLOCKED_EXTENSIONS = [
+                'exe', 'bat', 'cmd', 'com', 'scr', 'msi',  // Windows executables
+                'sh', 'bash', 'zsh', 'csh',  // Unix shells
+                'app', 'dmg', 'pkg',  // macOS executables
+                'zip', 'rar', '7z', 'tar', 'gz', 'bz2',  // Archives
+                'jar', 'war', 'apk', 'ipa',  // Java/mobile apps
+                'js', 'vbs', 'wsf', 'ps1',  // Scripts
+                'html', 'htm', 'svg'  // Could contain XSS
+            ];
+
+            const filename = file.name;
+            const extension = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
+
+            // Check blocked list first
+            if (BLOCKED_EXTENSIONS.includes(extension)) {
+                alert(`File type '.${extension}' is not allowed for security reasons.\n\nAllowed types: audio (mp3, wav, m4a, etc.), video (mp4, mov, etc.), documents (pdf, docx, txt), images (png, jpg, etc.)`);
+                return;
+            }
+
+            // Check whitelist
+            if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
+                alert(`File type '.${extension}' is not supported.\n\nAllowed types: ${ALLOWED_EXTENSIONS.join(', ')}`);
+                return;
+            }
+
+            // Validate file size (500MB to match backend)
+            const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB in bytes
+            if (file.size > MAX_FILE_SIZE) {
+                alert(`File size exceeds the maximum limit of 500MB.\nYour file: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+                return;
+            }
+
+            // Check if schema is in editor but not validated
+            const editor = document.getElementById('schemaEditor');
+            if (!currentFormSchema && editor.value.trim()) {
+                // Schema in editor but not validated - auto-validate
+                const isValid = validateSchema();
+                if (!isValid) {
+                    alert('Schema validation failed. Please fix the errors shown below the schema editor before processing.');
+                    return;
+                }
+            } else if (!currentFormSchema) {
+                // No schema at all
+                alert('Please load a form schema (use "Use Demo" or upload a custom schema) and validate it before processing media.');
+                return;
+            }
+
+            // Disable upload button
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Creating job...';
+            errorDisplay.style.display = 'none';
+            document.getElementById('successDisplay').style.display = 'none';
+            document.getElementById('resultsLink').style.display = 'none';
+
+            try {
+                startTime = new Date();
+
+                // Step 1: Create job and get upload URL
+                console.log('Creating job...');
+
+                // Build request body
+                const requestBody = {
+                    filename: filename
+                };
+
+                // Include form schema if loaded
+                if (currentFormSchema) {
+                    requestBody.form_schema = currentFormSchema;
+                    requestBody.form_id = currentFormSchema.form_id;
+                } else {
+                    requestBody.form_id = 'simple_media_analysis_v1';
+                }
+
+                // Include definitions if provided
+                const definitions = document.getElementById('definitions').value.trim();
+                if (definitions) {
+                    requestBody.definitions = definitions;
+                }
+
+                // Include pre-filled values if provided
+                const prefilledInput = document.getElementById('prefilledValues').value.trim();
+                if (prefilledInput) {
+                    try {
+                        requestBody.pre_filled_values = JSON.parse(prefilledInput);
+                    } catch (e) {
+                        alert('Invalid JSON in pre-filled values. Please check the format.');
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Process Media';
+                        return;
+                    }
+                }
+
+                const createResponse = await fetch(`${API_ENDPOINT}/jobs`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!createResponse.ok) {
+                    throw new Error(`Failed to create job: ${createResponse.statusText}`);
+                }
+
+                const createData = await createResponse.json();
+                const { job_id, upload_url, s3_key } = createData;
+
+                console.log('Job created:', job_id);
+                console.log('Upload URL:', upload_url);
+
+                // Show status container
+                statusContainer.classList.add('active');
+                document.getElementById('jobIdDisplay').textContent = `Job ID: ${job_id}`;
+                updateStatus('CREATED');
+
+                // Step 2: Upload file to presigned S3 URL
+                uploadBtn.textContent = 'Uploading file...';
+                console.log('Uploading file to S3...');
+
+                const uploadResponse = await fetch(upload_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type || 'application/octet-stream',
+                    }
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error(`Failed to upload file: ${uploadResponse.statusText}`);
+                }
+
+                console.log('File uploaded successfully');
+                uploadBtn.textContent = 'Processing...';
+
+                // Step 3: Poll for job status
+                pollJobStatus(API_ENDPOINT, job_id);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError(`Upload failed: ${error.message}`);
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Process Media';
+            }
+        }
+
+        async function pollJobStatus(apiEndpoint, jobId) {
+            let attempts = 0;
+            const maxAttempts = 240; // 20 minutes max (5s intervals)
+
+            pollInterval = setInterval(async () => {
+                attempts++;
+
+                if (attempts > maxAttempts) {
+                    clearInterval(pollInterval);
+                    showError('Timeout: Processing took too long. Please check AWS console for job status.');
+                    document.getElementById('uploadBtn').disabled = false;
+                    document.getElementById('uploadBtn').textContent = 'Process Media';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${apiEndpoint}/jobs/${jobId}`);
+
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            console.log('Job not found yet, waiting...');
+                            return; // Continue polling
+                        }
+                        throw new Error(`Failed to get status: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    const status = data.status;
+
+                    console.log('Status:', status);
+                    updateStatus(status);
+
+                    // Update elapsed time
+                    updateElapsedTime();
+
+                    // Check if job is complete
+                    if (status === 'COMPLETED') {
+                        clearInterval(pollInterval);
+                        document.getElementById('uploadBtn').disabled = false;
+                        document.getElementById('uploadBtn').textContent = 'Process Media';
+
+                        // Show success message with results
+                        const successDisplay = document.getElementById('successDisplay');
+                        successDisplay.textContent = `Processing complete. Your media has been processed and analyzed in ${getElapsedTime()}.`;
+                        successDisplay.style.display = 'block';
+
+                        // Fetch and display structured data
+                        await displayStructuredData(data);
+
+                        // Show results link
+                        const resultsLink = document.getElementById('resultsLink');
+                        resultsLink.style.display = 'block';
+                    } else if (status === 'FAILED') {
+                        clearInterval(pollInterval);
+                        document.getElementById('uploadBtn').disabled = false;
+                        document.getElementById('uploadBtn').textContent = 'Process Media';
+
+                        const errorInfo = data.error_info ? JSON.parse(data.error_info) : { message: 'Unknown error' };
+                        showError(`Processing failed: ${errorInfo.message || 'Unknown error'}`);
+                    }
+
+                } catch (error) {
+                    console.error('Status polling error:', error);
+                    // Don't stop polling on temporary errors
+                }
+            }, 5000); // Poll every 5 seconds
+        }
+
+        function updateStatus(status) {
+            const stage = STATUS_STAGES[status] || { progress: 0, message: status };
+
+            document.getElementById('progressFill').style.width = `${stage.progress}%`;
+            document.getElementById('statusText').textContent = stage.message;
+
+            const badge = document.getElementById('statusBadge');
+            badge.className = `status-badge status-${status.toLowerCase()}`;
+
+            if (status === 'COMPLETED') {
+                badge.innerHTML = '<span>Completed</span>';
+            } else if (status === 'FAILED') {
+                badge.innerHTML = '<span>Failed</span>';
+            } else {
+                badge.innerHTML = `<span class="spinner"></span><span>${escapeHtml(status.replace(/_/g, ' '))}</span>`;
+            }
+        }
+
+        function updateElapsedTime() {
+            if (!startTime) return;
+            document.getElementById('statusTime').textContent = `Elapsed: ${getElapsedTime()}`;
+        }
+
+        function getElapsedTime() {
+            if (!startTime) return '0s';
+            const elapsed = Math.floor((new Date() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+        }
+
+        function showError(message) {
+            const errorDisplay = document.getElementById('errorDisplay');
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+        }
+
+        async function displayStructuredData(jobData) {
+            const resultsContent = document.getElementById('resultsContent');
+
+            // Get the structured data and S3 keys from job data
+            const structuredData = jobData.structured_data;
+            const rawKey = jobData.raw_key;
+            const processedKey = jobData.processed_key;
+            const bdaOutputKey = jobData.bda_output_key;
+            const extractedContentKey = jobData.transcript_key; // Extracted content (all modalities)
+            const structuredDataKey = jobData.structured_data_key;
+
+            if (!structuredData && !structuredDataKey) {
+                resultsContent.innerHTML = '<div class="result-item">No structured data available</div>';
+                return;
+            }
+
+            try {
+                // Display JSON on the left
+                let html = '<div class="structured-data">';
+                html += '<div class="structured-data-title">Extracted Data (JSON)</div>';
+
+                if (structuredData) {
+                    html += '<div class="json-display">';
+                    html += JSON.stringify(structuredData, null, 2);
+                    html += '</div>';
+                } else {
+                    html += '<div class="result-item">Structured data not yet available</div>';
+                }
+
+                // Add S3 links for all pipeline stages
+                html += '<div style="margin-top: 16px;">';
+                html += '<div style="font-weight: 600; margin-bottom: 8px; color: #4a5568;">S3 Storage Locations:</div>';
+                if (rawKey) {
+                    html += `<div class="s3-link">📁 Raw Upload: ${rawKey}</div>`;
+                }
+                if (processedKey) {
+                    html += `<div class="s3-link">🔄 Processed Media: ${processedKey}</div>`;
+                }
+                if (bdaOutputKey) {
+                    html += `<div class="s3-link">🤖 BDA Output: ${bdaOutputKey}</div>`;
+                }
+                if (extractedContentKey) {
+                    html += `<div class="s3-link">📄 Extracted Content: ${extractedContentKey}</div>`;
+                }
+                if (structuredDataKey) {
+                    html += `<div class="s3-link">📊 Structured Data: ${structuredDataKey}</div>`;
+                }
+                html += '</div>';
+
+                html += '</div>';
+                resultsContent.innerHTML = html;
+
+                // Display filled form on the right
+                if (structuredData && currentFormSchema) {
+                    renderFormVisualizer(currentFormSchema, structuredData);
+                }
+
+            } catch (error) {
+                console.error('Error displaying structured data:', error);
+                resultsContent.innerHTML = `
+                    <div class="result-item">Error displaying structured data</div>
+                    <div class="result-item" style="margin-top: 8px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">S3 Storage Locations:</div>
+                        ${rawKey ? `<div class="s3-link">📁 Raw Upload: ${rawKey}</div>` : ''}
+                        ${processedKey ? `<div class="s3-link">🔄 Processed Media: ${processedKey}</div>` : ''}
+                        ${bdaOutputKey ? `<div class="s3-link">🤖 BDA Output: ${bdaOutputKey}</div>` : ''}
+                        ${extractedContentKey ? `<div class="s3-link">📄 Extracted Content: ${extractedContentKey}</div>` : ''}
+                        ${structuredDataKey ? `<div class="s3-link">📊 Structured Data: ${structuredDataKey}</div>` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        function toggleSection(sectionId) {
+            const content = document.getElementById(`${sectionId}-content`);
+            const icon = document.getElementById(`${sectionId}-icon`);
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.textContent = '▲';
+                icon.classList.add('expanded');
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▼';
+                icon.classList.remove('expanded');
+            }
+        }
+    </script>
+
+    <!-- AWS Cognito SDK -->
+    <!-- checkov:skip=CKV_SECRET_6: False positive - This is a Subresource Integrity (SRI) hash for security, not a secret -->
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.6/dist/amazon-cognito-identity.min.js"
+            integrity="sha384-OcHWOnEoU00BHNx+H54oDJAC6KhxE/d9EhQCsyzRzTRa55zZItEDA994e7jC4I9M"
+            crossorigin="anonymous"></script>
+
+    <!-- Authentication Layer -->
+    <script>
+        // Cognito Configuration
+        const cognitoConfig = {
+            UserPoolId: window.COGNITO_USER_POOL_ID || 'us-east-1_XXXXXXXXX',
+            ClientId: window.COGNITO_CLIENT_ID || 'XXXXXXXXXXXXXXXXXXXXXXXXXX',
+            Region: window.COGNITO_REGION || 'us-east-1'
+        };
+
+        // Authentication Manager
+        const AuthManager = {
+            userPool: null,
+            currentUser: null,
+            idToken: null,
+
+            init() {
+                // Initialize Cognito User Pool
+                this.userPool = new AmazonCognitoIdentity.CognitoUserPool({
+                    UserPoolId: cognitoConfig.UserPoolId,
+                    ClientId: cognitoConfig.ClientId
+                });
+
+                // Check for existing session
+                this.currentUser = this.userPool.getCurrentUser();
+
+                if (this.currentUser) {
+                    // User exists in localStorage, validate session
+                    this.currentUser.getSession((err, session) => {
+                        if (err) {
+                            console.error('Session validation failed:', err);
+                            this.showLoginModal();
+                            return;
+                        }
+
+                        if (session.isValid()) {
+                            this.idToken = session.getIdToken().getJwtToken();
+                            this.onLoginSuccess(session);
+                            this.setupTokenRefresh(session);
+                        } else {
+                            this.showLoginModal();
+                        }
+                    });
+                } else {
+                    // No user session, show login
+                    this.showLoginModal();
+                }
+            },
+
+            showLoginModal() {
+                const modal = document.getElementById('authLoginModal');
+                modal.style.display = 'flex';
+            },
+
+            hideLoginModal() {
+                const modal = document.getElementById('authLoginModal');
+                modal.style.display = 'none';
+            },
+
+            login(username, password) {
+                return new Promise((resolve, reject) => {
+                    const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+                        Username: username,
+                        Password: password
+                    });
+
+                    const cognitoUser = new AmazonCognitoIdentity.CognitoUser({
+                        Username: username,
+                        Pool: this.userPool
+                    });
+
+                    cognitoUser.authenticateUser(authenticationDetails, {
+                        onSuccess: (session) => {
+                            this.currentUser = cognitoUser;
+                            this.idToken = session.getIdToken().getJwtToken();
+                            this.onLoginSuccess(session);
+                            this.setupTokenRefresh(session);
+                            resolve(session);
+                        },
+                        onFailure: (err) => {
+                            reject(err);
+                        },
+                        newPasswordRequired: (userAttributes, requiredAttributes) => {
+                            reject(new Error('New password required. Please change password via AWS Console.'));
+                        }
+                    });
+                });
+            },
+
+            onLoginSuccess(session) {
+                const payload = session.getIdToken().payload;
+                const userEmail = payload.email || payload['cognito:username'] || 'User';
+
+                console.log('Login successful:', userEmail);
+                this.hideLoginModal();
+
+                // Update UI to show logged-in state (optional)
+                this.updateUserDisplay(userEmail);
+            },
+
+            updateUserDisplay(userEmail) {
+                // Optional: Add user info to header
+                const header = document.querySelector('header');
+                if (header && !document.getElementById('authUserInfo')) {
+                    const userInfo = document.createElement('div');
+                    userInfo.id = 'authUserInfo';
+                    userInfo.style.cssText = 'margin-top: 8px; font-size: 13px; color: #6B7280; display: flex; align-items: center; gap: 12px;';
+
+                    // Create elements safely without innerHTML to prevent XSS
+                    const emailSpan = document.createElement('span');
+                    emailSpan.textContent = 'Logged in as: ';
+                    const emailStrong = document.createElement('strong');
+                    emailStrong.textContent = userEmail; // textContent is safe from XSS
+                    emailSpan.appendChild(emailStrong);
+
+                    const logoutButton = document.createElement('button');
+                    logoutButton.textContent = 'Logout';
+                    logoutButton.onclick = () => AuthManager.logout();
+                    logoutButton.style.cssText = 'padding: 4px 12px; font-size: 12px; background: white; color: #374151; border: 1px solid #D1D5DB; border-radius: 4px; cursor: pointer; font-family: \'Inter\', sans-serif; font-weight: 500;';
+
+                    userInfo.appendChild(emailSpan);
+                    userInfo.appendChild(logoutButton);
+                    header.appendChild(userInfo);
+                }
+            },
+
+            setupTokenRefresh(session) {
+                // Refresh token 5 minutes before expiry
+                const expiresIn = session.getIdToken().getExpiration() * 1000 - Date.now();
+                const refreshTime = Math.max(expiresIn - 5 * 60 * 1000, 60000); // At least 1 minute
+
+                setTimeout(() => {
+                    this.refreshSession();
+                }, refreshTime);
+            },
+
+            refreshSession() {
+                if (!this.currentUser) return;
+
+                this.currentUser.getSession((err, session) => {
+                    if (err) {
+                        console.error('Session refresh failed:', err);
+                        this.showLoginModal();
+                        return;
+                    }
+
+                    if (session.isValid()) {
+                        this.idToken = session.getIdToken().getJwtToken();
+                        this.setupTokenRefresh(session);
+                        console.log('Token refreshed successfully');
+                    } else {
+                        this.showLoginModal();
+                    }
+                });
+            },
+
+            getIdToken() {
+                return this.idToken;
+            },
+
+            logout() {
+                if (this.currentUser) {
+                    this.currentUser.signOut();
+                }
+                this.currentUser = null;
+                this.idToken = null;
+
+                // Remove user display
+                const userInfo = document.getElementById('authUserInfo');
+                if (userInfo) {
+                    userInfo.remove();
+                }
+
+                // Show login modal
+                this.showLoginModal();
+            }
+        };
+
+        // Initialize authentication on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            AuthManager.init();
+        });
+
+        // Wrap fetch() to add Authorization header
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            // Only add auth to API Gateway calls (not S3 presigned URLs)
+            if (url.includes('/jobs')) {
+                const token = AuthManager.getIdToken();
+                if (token) {
+                    options.headers = options.headers || {};
+                    options.headers['Authorization'] = token;
+                }
+            }
+            return originalFetch(url, options);
+        };
+
+        // Login form handlers
+        function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('authUsername').value.trim();
+            const password = document.getElementById('authPassword').value;
+            const errorDisplay = document.getElementById('authErrorDisplay');
+            const loginButton = document.getElementById('authLoginButton');
+
+            if (!username || !password) {
+                errorDisplay.textContent = 'Please enter both username and password';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            // Show loading state
+            errorDisplay.style.display = 'none';
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+
+            AuthManager.login(username, password)
+                .then(() => {
+                    // Success - modal will be hidden by AuthManager
+                    document.getElementById('authLoginForm').reset();
+                })
+                .catch((err) => {
+                    console.error('Login failed:', err);
+                    let errorMessage = 'Login failed. Please try again.';
+
+                    if (err.code === 'NotAuthorizedException') {
+                        errorMessage = 'Incorrect username or password';
+                    } else if (err.code === 'UserNotFoundException') {
+                        errorMessage = 'User not found';
+                    } else if (err.code === 'UserNotConfirmedException') {
+                        errorMessage = 'Please confirm your account via email';
+                    } else if (err.message) {
+                        errorMessage = err.message;
+                    }
+
+                    errorDisplay.textContent = errorMessage;
+                    errorDisplay.style.display = 'block';
+                })
+                .finally(() => {
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Login';
+                });
+        }
+    </script>
+
+    <!-- Login Modal -->
+    <style>
+        #authLoginModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .auth-modal-header {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .auth-modal-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 8px;
+        }
+
+        .auth-modal-header p {
+            font-size: 14px;
+            color: #6B7280;
+        }
+
+        .auth-form-group {
+            margin-bottom: 20px;
+        }
+
+        .auth-form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .auth-form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.15s ease;
+        }
+
+        .auth-form-group input:focus {
+            outline: none;
+            border-color: #4F46E5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .auth-error-display {
+            display: none;
+            padding: 12px;
+            background: #FEF2F2;
+            color: #991B1B;
+            border: 1px solid #FCA5A5;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .auth-login-button {
+            width: 100%;
+            padding: 12px 16px;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .auth-login-button:hover:not(:disabled) {
+            background: #4338CA;
+        }
+
+        .auth-login-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .auth-modal-footer {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #E5E7EB;
+            text-align: center;
+            font-size: 13px;
+            color: #6B7280;
+        }
+    </style>
+
+    <div id="authLoginModal">
+        <div class="auth-modal-content">
+            <div class="auth-modal-header">
+                <h2>Login Required</h2>
+                <p>Please sign in to access Media Processing</p>
+            </div>
+
+            <form id="authLoginForm" onsubmit="handleLogin(event)">
+                <div id="authErrorDisplay" class="auth-error-display"></div>
+
+                <div class="auth-form-group">
+                    <label for="authUsername">Username or Email</label>
+                    <input
+                        type="text"
+                        id="authUsername"
+                        name="username"
+                        required
+                        autocomplete="username"
+                        placeholder="Enter your username"
+                    >
+                </div>
+
+                <div class="auth-form-group">
+                    <label for="authPassword">Password</label>
+                    <input
+                        type="password"
+                        id="authPassword"
+                        name="password"
+                        required
+                        autocomplete="current-password"
+                        placeholder="Enter your password"
+                    >
+                </div>
+
+                <button type="submit" id="authLoginButton" class="auth-login-button">
+                    Login
+                </button>
+            </form>
+
+            <div class="auth-modal-footer">
+                Credentials are managed via AWS Cognito
+            </div>
+        </div>
+    </div>
+</body>
+</html>
