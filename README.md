@@ -1,6 +1,6 @@
-# BDA Media Processing — Serverless Workflow
+# Intelligent Media Extraction to Structured Data on AWS
 
-Transform media files into structured data using AWS Bedrock Data Automation and Bedrock Large Language Models.
+Transform media files (documents, text, images, audio, video) into structured data for form filling automation using AWS Bedrock Data Automation, Bedrock LLMs, and Step Functions.
 
 ![Frontend UI](assets/screenshot-frontend.png)
 
