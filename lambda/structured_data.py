@@ -1,8 +1,8 @@
 """
-Lambda function to extract structured data from content using Claude.
+Lambda function to extract structured data from content using LLM.
 
 This function:
-1. Uses Claude API to analyze extracted content (transcript, OCR text, etc.)
+1. Uses LLM to analyze extracted content (transcript, OCR text, etc.)
 2. Extracts structured data based on form schema
 3. Stores results in S3 at results/{job_id}/structured-data.json
 4. Updates job status to "PROCESSING_STRUCTURED_DATA"
@@ -30,7 +30,7 @@ dynamodb = boto3.resource("dynamodb")
 DYNAMODB_TABLE = os.environ["DYNAMODB_TABLE"]
 S3_BUCKET = os.environ["S3_BUCKET"]
 RESULTS_PREFIX = os.environ.get("RESULTS_PREFIX", "results")
-CLAUDE_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-lite-v1:0")
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-pro-v1:0")
 
 # Simple form schema for media analysis (NEW FLAT FORMAT)
 FORM_SCHEMA = {
@@ -192,11 +192,10 @@ def build_prompt_from_schema(
     definitions: str = None
 ) -> str:
     """
-    Build Claude prompt dynamically from form schema with support for definitions and pre-filled values.
-    Supports both NEW flat format (fields array) and OLD nested format (sections array) for backward compatibility.
+    Build LLM prompt dynamically from form schema with support for definitions and pre-filled values.
 
     Args:
-        schema: Form schema dictionary
+        schema: Form schema dictionary with flat fields array
         content: Extracted content (includes "MODALITY: xxx" prefix)
         pre_filled_values: Optional pre-filled field values to preserve
         definitions: Optional industry-specific definitions for guidance
@@ -206,46 +205,23 @@ def build_prompt_from_schema(
     """
     form_id = schema.get("form_id", "custom_form")
 
-    # Support both OLD (sections) and NEW (fields) formats
-    # OLD format: {"form_id": "...", "sections": [{"section_id": "...", "fields": [...]}]}
-    # NEW format: {"form_id": "...", "fields": [...]}
-    is_old_format = "sections" in schema
-
     # Filter schema to remove pre-filled fields BEFORE building prompt
     # This reduces token usage and prevents LLM from seeing/modifying pre-filled values
     filtered_schema = filter_schema_fields(schema, pre_filled_values)
 
     # Build list of fields that need extraction (from filtered schema)
     extract_fields = []
+    fields = filtered_schema.get("fields", [])
 
-    if is_old_format:
-        # OLD FORMAT: nested sections
-        sections = filtered_schema.get("sections", [])
-        for section in sections:
-            fields = section.get("fields", [])
+    for field in fields:
+        field_id = field.get("field_id")
+        field_type = field.get("field_type", "text")
+        options = field.get("options", [])
 
-            for field in fields:
-                field_id = field.get("field_id")
-                field_type = field.get("field_type", "text")
-                options = field.get("options", [])
-
-                if field_type in ["select", "radio"] and options:
-                    extract_fields.append(f'"{field_id}": "<select one: {", ".join(options)}>"')
-                else:
-                    extract_fields.append(f'"{field_id}": "<extract from content>"')
-    else:
-        # NEW FORMAT: flat fields array
-        fields = filtered_schema.get("fields", [])
-
-        for field in fields:
-            field_id = field.get("field_id")
-            field_type = field.get("field_type", "text")
-            options = field.get("options", [])
-
-            if field_type in ["select", "radio"] and options:
-                extract_fields.append(f'"{field_id}": "<select one: {", ".join(options)}>"')
-            else:
-                extract_fields.append(f'"{field_id}": "<extract from content>"')
+        if field_type in ["select", "radio"] and options:
+            extract_fields.append(f'"{field_id}": "<select one: {", ".join(options)}>"')
+        else:
+            extract_fields.append(f'"{field_id}": "<extract from content>"')
 
     # Build prompt parts
     prompt_parts = []
@@ -271,86 +247,31 @@ Content:
 Extract the following information from the content:
 {extract_json}""")
 
-    # 4. Output format - use ORIGINAL schema to determine format and build complete response structure
+    # 4. Output format - use ORIGINAL schema to build complete response structure
     # We need all fields (including pre-filled) in the response format, but LLM only sees filtered fields
     all_fields_for_format = []
+    fields = schema.get("fields", [])
 
-    if is_old_format:
-        # OLD FORMAT: nested sections - build field list from ORIGINAL schema
-        sections = schema.get("sections", [])
-        for section in sections:
-            section_id = section.get("section_id", "content")
-            fields = section.get("fields", [])
+    for field in fields:
+        field_id = field.get("field_id")
+        field_type = field.get("field_type", "text")
+        options = field.get("options", [])
 
-            for field in fields:
-                field_id = field.get("field_id")
-                field_type = field.get("field_type", "text")
-                options = field.get("options", [])
+        # Check if pre-filled
+        is_prefilled = pre_filled_values and field_id in pre_filled_values
 
-                # Check if pre-filled
-                is_prefilled = (
-                    pre_filled_values and
-                    section_id in pre_filled_values and
-                    field_id in pre_filled_values[section_id]
-                )
-
-                if is_prefilled:
-                    value = pre_filled_values[section_id][field_id]
-                    all_fields_for_format.append(f'"{field_id}": "{value}"')
-                else:
-                    if field_type in ["select", "radio"] and options:
-                        all_fields_for_format.append(f'"{field_id}": "<select one: {", ".join(options)}>"')
-                    else:
-                        all_fields_for_format.append(f'"{field_id}": "<extracted value>"')
-    else:
-        # NEW FORMAT: flat fields - build field list from ORIGINAL schema
-        fields = schema.get("fields", [])
-
-        for field in fields:
-            field_id = field.get("field_id")
-            field_type = field.get("field_type", "text")
-            options = field.get("options", [])
-
-            # Check if pre-filled
-            is_prefilled = (
-                pre_filled_values and
-                field_id in pre_filled_values
-            )
-
-            if is_prefilled:
-                value = pre_filled_values[field_id]
-                all_fields_for_format.append(f'"{field_id}": "{value}"')
+        if is_prefilled:
+            value = pre_filled_values[field_id]
+            all_fields_for_format.append(f'"{field_id}": "{value}"')
+        else:
+            if field_type in ["select", "radio"] and options:
+                all_fields_for_format.append(f'"{field_id}": "<select one: {", ".join(options)}>"')
             else:
-                if field_type in ["select", "radio"] and options:
-                    all_fields_for_format.append(f'"{field_id}": "<select one: {", ".join(options)}>"')
-                else:
-                    all_fields_for_format.append(f'"{field_id}": "<extracted value>"')
+                all_fields_for_format.append(f'"{field_id}": "<extracted value>"')
 
     all_fields_json = ",\n            ".join(all_fields_for_format)
 
-    # Generate output format based on schema type
-    if is_old_format:
-        # OLD FORMAT: nested responses by section
-        section_id = schema.get("sections", [{}])[0].get("section_id", "content")
-        prompt_parts.append(f"""
-Return ONLY valid JSON in this exact format:
-{{
-    "form_id": "{form_id}",
-    "responses": {{
-        "{section_id}": {{
-            {all_fields_json}
-        }}
-    }}
-}}
-
-Important:
-- Return ONLY the JSON, no other text
-- Extract all fields from the content
-- Use the definitions provided to interpret industry-specific terms
-- If a field cannot be determined from the content, use "unknown" or best approximation""")
-    else:
-        # NEW FORMAT: flat responses object
-        prompt_parts.append(f"""
+    prompt_parts.append(f"""
 Return ONLY valid JSON in this exact format:
 {{
     "form_id": "{form_id}",
@@ -379,66 +300,37 @@ def filter_schema_fields(
     Pre-filled fields are excluded to save tokens and prevent LLM modification.
 
     Args:
-        schema: Full form schema (OLD or NEW format)
-        pre_filled_values: Pre-filled field values (OLD or NEW format)
-            - OLD format: {section_id: {field_id: value}}
-            - NEW format: {field_id: value}
+        schema: Full form schema with flat fields array
+        pre_filled_values: Pre-filled field values {field_id: value}
 
     Returns:
         Filtered schema with only fields that need extraction.
         Returns original schema if pre_filled_values is None or empty.
 
-    Examples:
-        NEW format:
+    Example:
         schema = {"form_id": "test", "fields": [{"field_id": "a"}, {"field_id": "b"}]}
         pre_filled = {"a": "value"}
         Result: {"form_id": "test", "fields": [{"field_id": "b"}]}
-
-        OLD format:
-        schema = {"form_id": "test", "sections": [{"section_id": "s1", "fields": [{"field_id": "a"}]}]}
-        pre_filled = {"s1": {"a": "value"}}
-        Result: {"form_id": "test", "sections": [{"section_id": "s1", "fields": []}]}
     """
-    # Return original schema if pre_filled_values is None or empty
     if not pre_filled_values:
         return schema
 
-    # Detect format: OLD format has "sections", NEW format has "fields"
-    is_old_format = "sections" in schema
-
-    # Create a deep copy to avoid mutating the original
     import copy
     filtered_schema = copy.deepcopy(schema)
 
-    if is_old_format:
-        # OLD FORMAT: Process nested sections
-        for section in filtered_schema.get("sections", []):
-            section_id = section.get("section_id", "")
-            section_pre_filled = pre_filled_values.get(section_id, {})
-
-            # Filter fields for this section
-            original_fields = section.get("fields", [])
-            filtered_fields = [
-                field for field in original_fields
-                if field.get("field_id") not in section_pre_filled
-            ]
-            section["fields"] = filtered_fields
-    else:
-        # NEW FORMAT: Process flat fields array
-        original_fields = filtered_schema.get("fields", [])
-        filtered_fields = [
-            field for field in original_fields
-            if field.get("field_id") not in pre_filled_values
-        ]
-        filtered_schema["fields"] = filtered_fields
+    original_fields = filtered_schema.get("fields", [])
+    filtered_fields = [
+        field for field in original_fields
+        if field.get("field_id") not in pre_filled_values
+    ]
+    filtered_schema["fields"] = filtered_fields
 
     return filtered_schema
 
 
 def merge_llm_with_prefilled(
     llm_responses: Dict[str, Any],
-    pre_filled_values: Dict[str, Any],
-    schema_format: str
+    pre_filled_values: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Merge LLM-extracted fields with pre-filled values.
@@ -446,68 +338,33 @@ def merge_llm_with_prefilled(
     Pre-filled values always take precedence over LLM responses in case of conflicts.
 
     Args:
-        llm_responses: LLM response dict (responses object only, NOT full form)
-            - OLD format: {section_id: {field_id: value}}
-            - NEW format: {field_id: value}
-        pre_filled_values: Pre-filled field values (same format as llm_responses)
-        schema_format: "old" (nested sections) or "new" (flat fields)
+        llm_responses: LLM response dict {field_id: value}
+        pre_filled_values: Pre-filled field values {field_id: value}
 
     Returns:
         Complete responses dict with both pre-filled and LLM-extracted values.
-        Format matches schema_format parameter.
 
-    Examples:
-        NEW format:
+    Example:
         llm_responses = {"b": "llm_value", "c": "llm_value2"}
         pre_filled = {"a": "prefill_value"}
         Result: {"a": "prefill_value", "b": "llm_value", "c": "llm_value2"}
 
-        OLD format:
-        llm_responses = {"content": {"b": "llm_value"}}
-        pre_filled = {"content": {"a": "prefill_value"}}
-        Result: {"content": {"a": "prefill_value", "b": "llm_value"}}
-
         Conflict (pre-filled wins):
         llm_responses = {"a": "llm_value"}
         pre_filled = {"a": "prefill_value"}
-        Result: {"a": "prefill_value"}  # pre-filled takes precedence
+        Result: {"a": "prefill_value"}
     """
-    # Handle None/empty pre_filled_values
     if not pre_filled_values:
         return llm_responses if llm_responses else {}
 
-    # Handle None/empty llm_responses
     if not llm_responses:
         return pre_filled_values if pre_filled_values else {}
 
-    # Handle NEW format (flat fields)
-    if schema_format == "new":
-        # Merge dicts with pre_filled_values taking precedence
-        # Dict order matters: later keys override earlier ones
-        merged = {**llm_responses, **pre_filled_values}
-        return merged
-
-    # Handle OLD format (nested sections)
-    if schema_format == "old":
-        merged = {}
-
-        # Get all unique section IDs from both dicts
-        all_sections = set(llm_responses.keys()) | set(pre_filled_values.keys())
-
-        for section_id in all_sections:
-            llm_section = llm_responses.get(section_id, {})
-            prefill_section = pre_filled_values.get(section_id, {})
-
-            # Merge section fields with pre_filled taking precedence
-            merged[section_id] = {**llm_section, **prefill_section}
-
-        return merged
-
-    # Invalid schema_format
-    raise ValueError(f"Invalid schema_format: {schema_format}. Must be 'old' or 'new'.")
+    # Merge with pre_filled_values taking precedence
+    return {**llm_responses, **pre_filled_values}
 
 
-def invoke_claude(
+def invoke_llm(
     content: str,
     job_id: str,
     form_schema: Dict[str, Any] = None,
@@ -515,7 +372,7 @@ def invoke_claude(
     definitions: str = None
 ) -> Dict[str, Any]:
     """
-    Invoke Claude API to extract structured data from content.
+    Invoke Amazon Bedrock LLM to extract structured data from content.
 
     Args:
         content: Extracted content text (includes "MODALITY: xxx" prefix)
@@ -528,13 +385,10 @@ def invoke_claude(
         Structured data dictionary
 
     Raises:
-        StructuredDataError: If Claude invocation fails
+        StructuredDataError: If LLM invocation fails
     """
     # Determine the schema to use
     schema = form_schema if form_schema else FORM_SCHEMA
-
-    # Detect schema format for later merging
-    schema_format = "old" if "sections" in schema else "new"
 
     # Build prompt from schema
     prompt = build_prompt_from_schema(
@@ -545,9 +399,9 @@ def invoke_claude(
     )
 
     try:
-        # Invoke Claude via Bedrock
+        # Invoke LLM via Bedrock
         response = bedrock_runtime.converse(
-            modelId=CLAUDE_MODEL_ID,
+            modelId=BEDROCK_MODEL_ID,
             messages=[
                 {
                     "role": "user",
@@ -565,7 +419,7 @@ def invoke_claude(
         content_blocks = output_message.get("content", [])
 
         if not content_blocks:
-            raise StructuredDataError("Empty response from Claude")
+            raise StructuredDataError("Empty response from LLM")
 
         response_text = content_blocks[0].get("text", "")
 
@@ -590,16 +444,12 @@ def invoke_claude(
         # Merge LLM responses with pre-filled values
         if pre_filled_values:
             llm_responses = structured_data.get("responses", {})
-            merged_responses = merge_llm_with_prefilled(
-                llm_responses=llm_responses,
-                pre_filled_values=pre_filled_values,
-                schema_format=schema_format
-            )
+            merged_responses = merge_llm_with_prefilled(llm_responses, pre_filled_values)
             structured_data["responses"] = merged_responses
 
         log_event(
             "INFO",
-            "Claude API invoked successfully",
+            "LLM invoked successfully",
             job_id=job_id,
             input_tokens=response.get("usage", {}).get("inputTokens"),
             output_tokens=response.get("usage", {}).get("outputTokens"),
@@ -610,20 +460,20 @@ def invoke_claude(
     except ClientError as e:
         log_event(
             "ERROR",
-            "Failed to invoke Claude API",
+            "Failed to invoke Bedrock LLM",
             job_id=job_id,
         )
-        raise StructuredDataError(f"Claude API invocation failed: {e}") from e
+        raise StructuredDataError(f"LLM invocation failed: {e}") from e
 
     except json.JSONDecodeError as e:
         log_event(
             "ERROR",
-            "Failed to parse Claude response as JSON",
+            "Failed to parse LLM response as JSON",
             job_id=job_id,
             response_length=len(response_text),
             has_markdown_blocks="```" in response_text,
-        )  # Avoid logging response_text - may contain extracted user data
-        raise StructuredDataError(f"Invalid JSON in Claude response: {e}") from e
+        )  
+        raise StructuredDataError(f"Invalid JSON in LLM response: {e}") from e
 
 
 def store_structured_data(bucket: str, job_id: str, data: Dict[str, Any]) -> str:
@@ -787,8 +637,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 prefilled_sections=list(pre_filled_values.keys()),
             )
 
-        # Invoke Claude to extract structured data
-        structured_data = invoke_claude(
+        # Invoke LLM to extract structured data
+        structured_data = invoke_llm(
             content, job_id, form_schema, pre_filled_values, definitions
         )
 

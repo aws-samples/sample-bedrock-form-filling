@@ -173,25 +173,10 @@ def validate_request(body: Dict[str, Any]) -> None:
     if "definitions" in body and not isinstance(body["definitions"], str):
         raise ValueError("definitions must be a string")
 
-    # Optional: pre_filled_values
+    # Optional: pre_filled_values (flat format: {field_id: value})
     if "pre_filled_values" in body:
         if not isinstance(body["pre_filled_values"], dict):
             raise ValueError("pre_filled_values must be a JSON object")
-
-        # Detect format: if values are dicts, it's OLD nested format; otherwise NEW flat format
-        sample_values = list(body["pre_filled_values"].values())
-        if sample_values:
-            first_value = sample_values[0]
-            is_flat_format = not isinstance(first_value, dict)
-
-            if not is_flat_format:
-                # OLD FORMAT: Validate nested structure - each section should contain fields as a dict
-                for section_id, fields in body["pre_filled_values"].items():
-                    if not isinstance(fields, dict):
-                        raise ValueError(
-                            f"pre_filled_values[{section_id}] must be a JSON object with field values"
-                        )
-            # NEW FORMAT: No additional validation needed, values can be strings or other primitives
 
 
 def create_job_record(

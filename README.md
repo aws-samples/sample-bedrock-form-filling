@@ -114,20 +114,17 @@ Define exactly what data to extract from media content:
 ```json
 {
   "form_id": "meeting_analysis_v1",
-  "sections": [
+  "fields": [
     {
-      "section_id": "content",
-      "fields": [
-        {
-          "field_id": "meeting_type",
-          "field_type": "select",
-          "options": ["standup", "planning", "retrospective"]
-        },
-        {
-          "field_id": "key_decisions",
-          "field_type": "text"
-        }
-      ]
+      "field_id": "meeting_type",
+      "field_name": "Meeting Type",
+      "field_type": "select",
+      "options": ["standup", "planning", "retrospective"]
+    },
+    {
+      "field_id": "key_decisions",
+      "field_name": "Key Decisions",
+      "field_type": "text"
     }
   ]
 }
@@ -222,7 +219,7 @@ A BDA project is automatically created by CloudFormation with all standard outpu
 - **Audio**: Transcripts, audio content moderation, topic content moderation, audio summaries, topic summaries, IAB classification
 
 **Bedrock LLM Model:**
-Structured data extraction uses `us.amazon.nova-lite-v1:0` (configurable in `infrastructure/template.yaml`)
+Structured data extraction uses `us.amazon.nova-pro-v1:0` (configurable in `infrastructure/template.yaml`)
 
 **IAB Classification:**
 IAB (Interactive Advertising Bureau) provides standardized content classification for digital advertising and content categorization. Enabled for image, video, and audio processing.

@@ -145,33 +145,17 @@ def validate_structure(
         errors.append("Field 'responses' must be a dictionary")
         return errors
 
-    # Validate against schema sections
-    schema_sections = form_schema.get("sections", [])
+    # Validate against schema fields (flat format)
+    schema_fields = form_schema.get("fields", [])
 
-    for section in schema_sections:
-        section_id = section.get("id")
-        if not section_id:
+    for field in schema_fields:
+        field_id = field.get("field_id")
+        if not field_id:
             continue
 
-        # Check if section exists in responses
-        if section_id not in responses:
-            errors.append(f"Missing required section: {section_id}")
-            continue
-
-        section_responses = responses.get(section_id, {})
-        if not isinstance(section_responses, dict):
-            errors.append(f"Section '{section_id}' must be a dictionary")
-            continue
-
-        # Check required fields within section
-        for field in section.get("fields", []):
-            field_id = field.get("id")
-            is_required = field.get("required", False)
-
-            if is_required and field_id not in section_responses:
-                errors.append(
-                    f"Missing required field in section '{section_id}': {field_id}"
-                )
+        is_required = field.get("required", False)
+        if is_required and field_id not in responses:
+            errors.append(f"Missing required field: {field_id}")
 
     log_event(
         "INFO",
@@ -210,40 +194,29 @@ def validate_field_values(
 
     try:
         responses = data.get("responses", {})
-        schema_sections = form_schema.get("sections", [])
+        schema_fields = form_schema.get("fields", [])
 
-        for section in schema_sections:
-            section_id = section.get("id")
-            if not section_id or section_id not in responses:
+        for field in schema_fields:
+            field_id = field.get("field_id")
+            field_type = field.get("field_type")
+            field_options = field.get("options", [])
+
+            if not field_id or field_id not in responses:
                 continue
 
-            section_responses = responses.get(section_id, {})
+            field_value = responses.get(field_id)
 
-            for field in section.get("fields", []):
-                field_id = field.get("id")
-                field_type = field.get("type")
-                field_options = field.get("options", [])
+            # Validate select/radio fields against allowed options
+            if field_type in ["select", "radio"] and field_options:
+                if field_value and field_value not in field_options:
+                    errors.append(
+                        f"Invalid value for '{field_id}': must be one of {field_options}, got '{field_value}'"
+                    )
 
-                if field_id not in section_responses:
-                    continue
-
-                field_value = section_responses.get(field_id)
-
-                # Validate select/dropdown fields
-                if field_type in ["select", "radio"] and field_options:
-                    valid_options = [opt.get("value") for opt in field_options]
-                    if field_value and field_value not in valid_options:
-                        errors.append(
-                            f"Invalid value for '{field_id}': must be one of {valid_options}, got '{field_value}'"
-                        )
-
-                # Validate text/textarea fields (non-empty check)
-                if field_type in ["text", "textarea"]:
-                    if field_value is not None:
-                        if not isinstance(field_value, str):
-                            errors.append(f"Field '{field_id}' must be a string")
-                        elif not field_value.strip():
-                            errors.append(f"Field '{field_id}' cannot be empty")
+            # Validate text fields (type check)
+            if field_type == "text":
+                if field_value is not None and not isinstance(field_value, str):
+                    errors.append(f"Field '{field_id}' must be a string")
 
         log_event(
             "INFO",

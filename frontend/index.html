@@ -763,7 +763,7 @@
                         <div class="form-group">
                             <label for="definitions">Industry-Specific Definitions</label>
                             <textarea id="definitions" rows="6" placeholder="Enter industry-specific definitions to guide extraction (one per line)&#10;Example:&#10;Chief complaint = primary reason for visit&#10;Pain level = numeric scale 1-10"></textarea>
-                            <span class="hint">Help Claude interpret domain-specific terminology accurately</span>
+                            <span class="hint">Help the LLM interpret domain-specific terminology accurately</span>
                         </div>
                     </div>
                 </div>
@@ -777,7 +777,7 @@
                         <div class="form-group">
                             <label for="prefilledValues">Pre-filled Field Values (JSON)</label>
                             <textarea id="prefilledValues" rows="6" placeholder='{"content": {"patient_id": "PAT-12345", "appointment_date": "2025-10-31"}}'></textarea>
-                            <span class="hint">Provide known values that Claude should not override</span>
+                            <span class="hint">Provide known values that the LLM should not override</span>
                         </div>
                     </div>
                 </div>
@@ -1110,66 +1110,35 @@
             html += data ? 'Extracted Form Data' : 'Form Preview';
             html += '</div>';
 
-            // Support both OLD (sections) and NEW (fields) formats
-            const isOldFormat = !!schema.sections;
-            let fieldsToRender = [];
-
-            if (isOldFormat) {
-                // OLD FORMAT: flatten sections into fields
-                schema.sections.forEach(section => {
-                    section.fields.forEach(field => {
-                        fieldsToRender.push({
-                            ...field,
-                            section_id: section.section_id
-                        });
-                    });
-                });
-            } else {
-                // NEW FORMAT: use fields directly
-                fieldsToRender = schema.fields || [];
-            }
+            const fieldsToRender = schema.fields || [];
 
             // Render each field
             fieldsToRender.forEach(field => {
                 // Use field_name if provided, otherwise generate from field_id
                 const fieldLabel = field.field_name || field.field_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-                // Get field value based on format (try multiple locations for backward compatibility)
+                // Get field value from flat responses
                 let fieldValue = null;
                 if (data && data.responses) {
-                    if (isOldFormat && field.section_id) {
-                        // OLD FORMAT SCHEMA: try nested by section
-                        fieldValue = data.responses[field.section_id]?.[field.field_id];
-                    } else {
-                        // NEW FORMAT SCHEMA: try flat first
-                        fieldValue = data.responses[field.field_id];
-
-                        // Fallback: if not found in flat format, try looking in nested "content" section
-                        // (for backward compatibility with old data generated before flat format support)
-                        if (fieldValue === undefined || fieldValue === null) {
-                            fieldValue = data.responses.content?.[field.field_id];
-                        }
-                    }
+                    fieldValue = data.responses[field.field_id];
                 }
 
                 html += '<div class="form-field">';
                 html += `<label class="form-field-label">${escapeHtml(fieldLabel)}</label>`;
 
-                // Generate unique identifiers
-                const sectionId = field.section_id || 'main';
                 const fieldId = field.field_id;
 
                 if (field.field_type === 'text') {
                     const filled = fieldValue ? 'filled' : '';
                     const value = fieldValue || '';
                     html += `<input type="text" class="form-field-input ${filled}" value="${escapeHtml(value)}"
-                             data-section="${escapeHtml(sectionId)}" data-field="${escapeHtml(fieldId)}"
+                             data-field="${escapeHtml(fieldId)}"
                              placeholder="Optional: Pre-fill this field"
                              onchange="updatePreFilledValues()">`;
                 } else if (field.field_type === 'select' && field.options) {
                     const filled = fieldValue ? 'filled' : '';
                     html += `<select class="select-dropdown ${filled}"
-                             data-section="${escapeHtml(sectionId)}" data-field="${escapeHtml(fieldId)}"
+                             data-field="${escapeHtml(fieldId)}"
                              onchange="updatePreFilledValues()">`;
                     html += `<option value="">Select an option</option>`;
                     field.options.forEach(option => {
@@ -1181,11 +1150,11 @@
                     html += '<div class="form-field-radio">';
                     field.options.forEach((option, index) => {
                         const selected = fieldValue === option ? 'selected' : '';
-                        const radioId = `${escapeHtml(sectionId)}_${escapeHtml(fieldId)}_${index}`;
-                        const radioName = `${escapeHtml(sectionId)}_${escapeHtml(fieldId)}`;
-                        html += `<div class="radio-option ${selected}" onclick="selectRadio('${radioId}', '${escapeHtml(sectionId)}', '${escapeHtml(fieldId)}', '${escapeHtml(option)}')">`;
+                        const radioId = `${escapeHtml(fieldId)}_${index}`;
+                        const radioName = escapeHtml(fieldId);
+                        html += `<div class="radio-option ${selected}" onclick="selectRadio('${radioId}', '${escapeHtml(fieldId)}', '${escapeHtml(option)}')">`;
                         html += `<input type="radio" id="${radioId}" name="${radioName}" ${selected ? 'checked' : ''}
-                                 data-section="${escapeHtml(sectionId)}" data-field="${escapeHtml(fieldId)}" value="${escapeHtml(option)}">`;
+                                 data-field="${escapeHtml(fieldId)}" value="${escapeHtml(option)}">`;
                         html += escapeHtml(option);
                         html += '</div>';
                     });
@@ -1209,7 +1178,7 @@
         }
 
         // Handle radio button selection
-        function selectRadio(radioId, sectionId, fieldId, value) {
+        function selectRadio(radioId, fieldId, value) {
             const radio = document.getElementById(radioId);
             if (!radio || radio.disabled) return;
 
@@ -1227,69 +1196,33 @@
         function updatePreFilledValues() {
             if (!currentFormSchema) return;
 
-            const isOldFormat = !!currentFormSchema.sections;
             const preFilledValues = {};
+            const fields = currentFormSchema.fields || [];
 
-            if (isOldFormat) {
-                // OLD FORMAT: nested by section
-                currentFormSchema.sections.forEach(section => {
-                    section.fields.forEach(field => {
-                        let value = null;
+            fields.forEach(field => {
+                let value = null;
 
-                        if (field.field_type === 'text') {
-                            const input = document.querySelector(`input[data-section="${section.section_id}"][data-field="${field.field_id}"]`);
-                            if (input && input.value.trim()) {
-                                value = input.value.trim();
-                            }
-                        } else if (field.field_type === 'select') {
-                            const select = document.querySelector(`select[data-section="${section.section_id}"][data-field="${field.field_id}"]`);
-                            if (select && select.value) {
-                                value = select.value;
-                            }
-                        } else if (field.field_type === 'radio') {
-                            const radio = document.querySelector(`input[data-section="${section.section_id}"][data-field="${field.field_id}"]:checked`);
-                            if (radio) {
-                                value = radio.value;
-                            }
-                        }
-
-                        if (value) {
-                            if (!preFilledValues[section.section_id]) {
-                                preFilledValues[section.section_id] = {};
-                            }
-                            preFilledValues[section.section_id][field.field_id] = value;
-                        }
-                    });
-                });
-            } else {
-                // NEW FORMAT: flat structure
-                const fields = currentFormSchema.fields || [];
-                fields.forEach(field => {
-                    let value = null;
-                    const sectionId = 'main'; // default section for new format
-
-                    if (field.field_type === 'text') {
-                        const input = document.querySelector(`input[data-field="${field.field_id}"]`);
-                        if (input && input.value.trim()) {
-                            value = input.value.trim();
-                        }
-                    } else if (field.field_type === 'select') {
-                        const select = document.querySelector(`select[data-field="${field.field_id}"]`);
-                        if (select && select.value) {
-                            value = select.value;
-                        }
-                    } else if (field.field_type === 'radio') {
-                        const radio = document.querySelector(`input[data-field="${field.field_id}"]:checked`);
-                        if (radio) {
-                            value = radio.value;
-                        }
+                if (field.field_type === 'text') {
+                    const input = document.querySelector(`input[data-field="${field.field_id}"]`);
+                    if (input && input.value.trim()) {
+                        value = input.value.trim();
                     }
-
-                    if (value) {
-                        preFilledValues[field.field_id] = value;
+                } else if (field.field_type === 'select') {
+                    const select = document.querySelector(`select[data-field="${field.field_id}"]`);
+                    if (select && select.value) {
+                        value = select.value;
                     }
-                });
-            }
+                } else if (field.field_type === 'radio') {
+                    const radio = document.querySelector(`input[data-field="${field.field_id}"]:checked`);
+                    if (radio) {
+                        value = radio.value;
+                    }
+                }
+
+                if (value) {
+                    preFilledValues[field.field_id] = value;
+                }
+            });
 
             // Update the pre_filled_values textarea
             const textarea = document.getElementById('prefilledValues');
